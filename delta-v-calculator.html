@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🚀 火箭 Delta-V 计算器 · 多级质量链</title>
+<style>
+  :root {
+    --bg: #0B0E14;
+    --neon: #00E5FF;
+    --card-border: #2A2E3C;
+    --input-border: #3A4050;
+    --text: #D6E4F0;
+    --text-dim: #8A93A6;
+    --danger: #FF4D6D;
+    --warn: #FFB020;
+    --pass: #00FFA3;
+    --deep: #C77DFF;
+    --mono: "JetBrains Mono", "Cascadia Code", Consolas, "Courier New", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 40px 16px 60px;
+  }
+
+  body::before, body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* 星点 */
+  body::before {
+    background-image:
+      radial-gradient(1px 1px at 25px 30px, rgba(255,255,255,.4) 50%, transparent 50%),
+      radial-gradient(1px 1px at 80px 110px, rgba(255,255,255,.25) 50%, transparent 50%),
+      radial-gradient(1.5px 1.5px at 130px 60px, rgba(255,255,255,.3) 50%, transparent 50%),
+      radial-gradient(1px 1px at 170px 160px, rgba(255,255,255,.2) 50%, transparent 50%),
+      radial-gradient(1px 1px at 45px 200px, rgba(255,255,255,.35) 50%, transparent 50%);
+    background-size: 200px 220px;
+    opacity: .55;
+    animation: twinkle 7s ease-in-out infinite alternate;
+  }
+
+  /* 星云光晕 */
+  body::after {
+    background:
+      radial-gradient(640px 420px at 12% 8%, rgba(0,229,255,.07), transparent 65%),
+      radial-gradient(720px 520px at 88% 92%, rgba(124,58,237,.10), transparent 65%),
+      radial-gradient(520px 320px at 55% 0%, rgba(0,255,163,.05), transparent 60%);
+  }
+
+  @keyframes twinkle {
+    from { opacity: .35; }
+    to   { opacity: .8; }
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 860px;
+  }
+
+  header { text-align: center; margin-bottom: 24px; }
+
+  h1 {
+    margin: 0 0 10px;
+    font-size: clamp(1.6rem, 4.5vw, 2.4rem);
+    color: #EAFBFF;
+    letter-spacing: .04em;
+    text-shadow: 0 0 18px rgba(0,229,255,.35);
+  }
+
+  .formula {
+    font-family: var(--mono);
+    color: var(--neon);
+    font-size: 1rem;
+    text-shadow: 0 0 10px rgba(0,229,255,.45);
+  }
+
+  .subtitle {
+    margin: 10px auto 0;
+    max-width: 640px;
+    color: var(--text-dim);
+    font-size: .9rem;
+    line-height: 1.6;
+  }
+  /* 模式切换 */
+  .mode-switch {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin: 22px 0 6px;
+    flex-wrap: wrap;
+  }
+
+  .mode-btn {
+    font-family: var(--mono);
+    font-size: .92rem;
+    padding: 11px 22px;
+    border-radius: 10px;
+    cursor: pointer;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--card-border);
+    color: var(--text-dim);
+    transition: background .2s, box-shadow .2s, border-color .2s, color .2s;
+    user-select: none;
+  }
+
+  .mode-btn:hover {
+    border-color: rgba(0,229,255,.5);
+    color: var(--neon);
+    box-shadow: 0 0 14px rgba(0,229,255,.18);
+  }
+
+  .mode-btn.active {
+    background: rgba(0,229,255,.12);
+    border-color: var(--neon);
+    color: var(--neon);
+    box-shadow: 0 0 18px rgba(0,229,255,.35);
+    text-shadow: 0 0 8px rgba(0,229,255,.5);
+  }
+
+  .mode-label {
+    text-align: center;
+    margin: 14px 0 4px;
+    font-family: var(--mono);
+    font-size: .9rem;
+    color: var(--neon);
+    text-shadow: 0 0 8px rgba(0,229,255,.4);
+  }
+
+  .mode-rocket {
+    text-align: center;
+    margin: 0 0 18px;
+    color: var(--text-dim);
+    font-size: .88rem;
+  }
+
+  #stages { display: flex; flex-direction: column; gap: 16px; }
+
+  .stage-card {
+    position: relative;
+    background: rgba(255,255,255,.035);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 16px 18px 14px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 34px rgba(0,0,0,.38);
+    transition: border-color .25s ease, box-shadow .25s ease;
+  }
+
+  .stage-card.is-error,
+  .stage-card.is-chain-error {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 1px rgba(255,77,109,.45), 0 10px 34px rgba(255,77,109,.14);
+  }
+
+  .stage-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .stage-name {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: .95rem;
+    letter-spacing: .08em;
+    color: var(--neon);
+    text-shadow: 0 0 8px rgba(0,229,255,.5);
+  }
+
+  .stage-dv {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 1.05rem;
+    color: var(--neon);
+    text-shadow: 0 0 12px rgba(0,229,255,.55);
+  }
+
+  .stage-dv.is-error {
+    color: var(--danger);
+    text-shadow: 0 0 12px rgba(255,77,109,.55);
+  }
+
+  .stage-error {
+    display: none;
+    margin: -6px 0 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(255,77,109,.1);
+    border: 1px solid rgba(255,77,109,.4);
+    color: #FFB3C1;
+    font-size: .85rem;
+  }
+
+  .stage-card.is-error .stage-error { display: block; }
+
+  .stage-inputs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+  }
+
+  .field label {
+    display: block;
+    margin-bottom: 7px;
+    font-size: .75rem;
+    letter-spacing: .1em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .field input {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 1rem;
+    color: #EAFBFF;
+    background: rgba(0,0,0,.45);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    outline: none;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .field input:focus {
+    border-color: var(--neon);
+    background: rgba(0,229,255,.05);
+    box-shadow:
+      0 0 0 1px var(--neon),
+      0 0 14px rgba(0,229,255,.45),
+      inset 0 0 10px rgba(0,229,255,.07);
+  }
+
+  .stage-note {
+    margin-top: 10px;
+    font-size: .78rem;
+    color: var(--text-dim);
+  }
+
+  .chain-line {
+    margin-top: 10px;
+    min-height: 1.2em;
+    font-family: var(--mono);
+    font-size: .8rem;
+  }
+
+  .chain-pass  { color: var(--pass); text-shadow: 0 0 8px rgba(0,255,163,.4); }
+  .chain-fail  { color: var(--danger); text-shadow: 0 0 8px rgba(255,77,109,.5); }
+  .chain-neutral { color: var(--text-dim); }
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin: 18px 0;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: .9rem;
+    padding: 10px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    background: rgba(0,229,255,.07);
+    border: 1px solid rgba(0,229,255,.45);
+    color: var(--neon);
+    transition: background .2s, box-shadow .2s, transform .1s;
+    user-select: none;
+  }
+
+  .btn:hover:not(:disabled) {
+    background: rgba(0,229,255,.16);
+    box-shadow: 0 0 16px rgba(0,229,255,.35);
+  }
+
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+
+  .btn.ghost {
+    background: rgba(255,255,255,.04);
+    border-color: var(--card-border);
+    color: var(--text-dim);
+  }
+
+  .btn.ghost:hover:not(:disabled) {
+    background: rgba(255,255,255,.08);
+    box-shadow: none;
+    color: var(--text);
+  }
+
+  .remove-btn {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border: 1px solid rgba(255,77,109,.5);
+    background: rgba(255,77,109,.08);
+    color: var(--danger);
+    border-radius: 8px;
+    font-size: .9rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .2s, box-shadow .2s;
+  }
+
+  .remove-btn:hover:not(:disabled) {
+    background: rgba(255,77,109,.18);
+    box-shadow: 0 0 12px rgba(255,77,109,.35);
+  }
+
+  .remove-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+  .result-card {
+    margin-top: 6px;
+    text-align: center;
+    padding: 28px 20px 30px;
+    border-radius: 16px;
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(0,229,255,.25);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow:
+      0 0 30px rgba(0,229,255,.08),
+      0 12px 40px rgba(0,0,0,.45),
+      inset 0 0 40px rgba(0,229,255,.04);
+  }
+
+  .total-label {
+    font-size: .85rem;
+    letter-spacing: .3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .total-value {
+    margin: 10px 0 6px;
+    font-family: var(--mono);
+    font-size: clamp(2.6rem, 9vw, 4.6rem);
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--neon);
+    text-shadow:
+      0 0 8px rgba(0,229,255,.95),
+      0 0 26px rgba(0,229,255,.7),
+      0 0 70px rgba(0,229,255,.4);
+    min-height: 1.2em;
+  }
+
+  .total-value.bump { animation: bump .32s ease; }
+
+  @keyframes bump {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.07); }
+    100% { transform: scale(1); }
+  }
+
+  .hint {
+    font-size: 1.05rem;
+    font-weight: 600;
+    min-height: 1.6em;
+  }
+
+  .hint.neutral { color: var(--text-dim); }
+  .hint.danger { color: var(--danger); text-shadow: 0 0 14px rgba(255,77,109,.6); }
+  .hint.warn   { color: var(--warn); text-shadow: 0 0 14px rgba(255,176,32,.6); }
+  .hint.pass   { color: var(--pass); text-shadow: 0 0 14px rgba(0,255,163,.6); }
+  .hint.deep   { color: var(--deep); text-shadow: 0 0 14px rgba(199,125,255,.65); }
+  .info-card, .ref-card {
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.03);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    font-size: .85rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+  }
+
+  .info-card .info-title, .ref-card .info-title {
+    margin-bottom: 6px;
+    font-family: var(--mono);
+    font-size: .88rem;
+    color: var(--neon);
+    letter-spacing: .06em;
+    text-shadow: 0 0 8px rgba(0,229,255,.4);
+  }
+
+  .info-card code, .ref-card code {
+    font-family: var(--mono);
+    color: var(--neon);
+    background: rgba(0,229,255,.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .ref-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: .8rem;
+  }
+
+  .ref-table td {
+    padding: 6px 4px;
+    border-bottom: 1px dashed rgba(255,255,255,.08);
+  }
+
+  .ref-table td:last-child {
+    text-align: right;
+    color: var(--neon);
+    white-space: nowrap;
+  }
+
+  .ref-table tr:last-child td { border-bottom: none; }
+
+  footer {
+    margin-top: 22px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: .8rem;
+    line-height: 1.7;
+  }
+
+  footer code {
+    font-family: var(--mono);
+    color: var(--neon);
+  }
+
+  @media (max-width: 620px) {
+    .stage-inputs { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🚀 火箭 Delta-V 计算器</h1>
+    <div class="formula">Δv = Isp × 9.81 × ln(m₀ / m₁)</div>
+    <p class="subtitle">多级火箭逐级计算速度增量，自动汇总总 Δv；任意输入变化即实时重算。质量按「点火时总质量」口径，强制执行 上一级干重 &gt; 下一级湿重 的质量链。</p>
+  </header>
+
+  <div class="mode-switch">
+    <button class="mode-btn active" type="button" data-mode="easy">🛰️ 简单模式 · Falcon 9</button>
+    <button class="mode-btn" type="button" data-mode="hard">🌕 困难模式 · Saturn V</button>
+  </div>
+  <div class="mode-label" id="modeLabel">当前模式：简单模式</div>
+  <div class="mode-rocket" id="modeRocket">Falcon 9 · 两级中型火箭（近地轨道）</div>
+
+  <div id="stages"></div>
+
+  <div class="actions">
+    <button class="btn" id="addBtn" type="button">＋ 添加一级</button>
+    <button class="btn ghost" id="clearBtn" type="button">✎ 自定义（从空白开始）</button>
+  </div>
+
+  <section class="result-card">
+    <div class="total-label">总 Delta-V</div>
+    <div class="total-value" id="totalValue">--</div>
+    <div class="hint neutral" id="hint">等待输入…</div>
+  </section>
+
+  <section class="info-card">
+    <div class="info-title">🧭 物理质量链约束（严格口径）</div>
+    每一级<b>湿重</b> = 该级点火时整箭剩余总质量（含上面级与载荷）；<b>干重</b> = 该级燃尽分离后、下一级点火前的剩余质量。因此必须满足 <code>上一级干重 &gt; 下一级湿重</code>，否则质量不守恒，总 Δv 判定失效。
+  </section>
+
+  <section class="ref-card">
+    <div class="info-title">📡 真实任务参考 Δv（已联网核对）</div>
+    <table class="ref-table">
+      <tr><td>Falcon 9 · 两级理想 Δv（含二级与载荷）</td><td>≈ 9.25 km/s</td></tr>
+      <tr><td>Saturn V · 三级理想 Δv（含阿波罗载荷）</td><td>≈ 13.8 km/s</td></tr>
+      <tr><td>入轨 LEO（含重力/大气损耗）</td><td>≈ 9.3 – 9.5 km/s</td></tr>
+      <tr><td>地月转移 TLI</td><td>≈ 12.3 – 12.6 km/s</td></tr>
+      <tr><td>火星转移（霍曼轨道）</td><td>≈ 15 km/s</td></tr>
+    </table>
+  </section>
+
+  <footer>
+    忽略重力损失、大气阻力与级间分离损耗，按理想齐奥尔科夫斯基公式估算。<br />
+    <code>g₀ = 9.81 m/s²</code> · 质量单位（吨）仅用于比值
+  </footer>
+</main>
+<script>
+  (function () {
+    const stagesEl = document.getElementById("stages");
+    const addBtn = document.getElementById("addBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const totalEl = document.getElementById("totalValue");
+    const hintEl = document.getElementById("hint");
+    const modeLabelEl = document.getElementById("modeLabel");
+    const modeRocketEl = document.getElementById("modeRocket");
+    const modeBtns = [...document.querySelectorAll(".mode-btn")];
+
+    const fmt = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+    const format = (v) => fmt.format(v);
+
+    const MODES = {
+      easy: {
+        label: "简单模式",
+        rocket: "Falcon 9 · 两级中型火箭（近地轨道）",
+        stages: [
+          { name: "第 1 级 · S1", wet: 567.4, dry: 156.5, isp: 297, note: "湿重 = 整箭点火质量（含二级与载荷）；干重 = 一级燃尽后剩余质量" },
+          { name: "第 2 级 · S2", wet: 134.3, dry: 26.8, isp: 348, note: "湿重 = 二级点火质量（含载荷）；干重 = 二级结构 + 载荷" },
+        ],
+      },
+      hard: {
+        label: "困难模式",
+        rocket: "土星五号 Saturn V · 三级重型火箭（阿波罗登月）",
+        stages: [
+          { name: "第 1 级 · S-IC", wet: 2858.4, dry: 781.4, isp: 263, note: "湿重 = 整箭点火质量（含全部上面级与载荷）；干重 = S-IC 燃尽后剩余质量" },
+          { name: "第 2 级 · S-II", wet: 644.4, dry: 188.3, isp: 421, note: "湿重 = S-II 点火质量（含三级与载荷）；干重 = S-II 燃尽后剩余质量" },
+          { name: "第 3 级 · S-IVB", wet: 148.2, dry: 40.4, isp: 421, note: "湿重 = S-IVB 点火质量（含载荷）；干重 = 三级结构 + 载荷" },
+        ],
+      },
+    };
+
+    function createStageCard(index, opts) {
+      const card = document.createElement("div");
+      card.className = "stage-card";
+      const name = (opts && opts.name) || `第 ${index} 级`;
+      if (opts && opts.name) card.dataset.stageName = name;
+      const note = (opts && opts.note) ? `<div class="stage-note">${opts.note}</div>` : "";
+      card.innerHTML = `
+        <div class="stage-head">
+          <span class="stage-name">${name}</span>
+          <span class="stage-dv" data-dv>--</span>
+          <button type="button" class="remove-btn" title="删除这一级">✕</button>
+        </div>
+        <div class="stage-error">⚠️ 湿重必须大于干重，该级数据无效</div>
+        <div class="stage-inputs">
+          <div class="field">
+            <label>湿重（吨）</label>
+            <input type="number" min="0" step="any" inputmode="decimal" data-field="wet" placeholder="点火时总质量" />
+          </div>
+          <div class="field">
+            <label>干重（吨）</label>
+            <input type="number" min="0" step="any" inputmode="decimal" data-field="dry" placeholder="燃尽后剩余质量" />
+          </div>
+          <div class="field">
+            <label>比冲 Isp（秒）</label>
+            <input type="number" min="0" step="any" inputmode="decimal" data-field="isp" placeholder="发动机比冲" />
+          </div>
+        </div>
+        ${note}
+        <div class="chain-line" data-chain></div>
+      `;
+      return card;
+    }
+
+    function addStage() {
+      stagesEl.appendChild(createStageCard(stagesEl.children.length + 1));
+      updateRemoveButtons();
+      recalc();
+    }
+
+    function renumber() {
+      [...stagesEl.children].forEach((card, i) => {
+        card.querySelector(".stage-name").textContent = card.dataset.stageName || `第 ${i + 1} 级`;
+      });
+      updateRemoveButtons();
+    }
+
+    function updateRemoveButtons() {
+      const onlyOne = stagesEl.children.length <= 1;
+      stagesEl.querySelectorAll(".remove-btn").forEach((b) => (b.disabled = onlyOne));
+    }
+
+    function setHint(text, kind) {
+      hintEl.textContent = text;
+      hintEl.className = "hint " + kind;
+    }
+    function recalc() {
+      const cards = [...stagesEl.children];
+      const rows = cards.map((card) => ({
+        card,
+        wet: parseFloat(card.querySelector('[data-field="wet"]').value),
+        dry: parseFloat(card.querySelector('[data-field="dry"]').value),
+        isp: parseFloat(card.querySelector('[data-field="isp"]').value),
+        dv: null,
+        stageOk: false,
+      }));
+
+      let total = 0;
+      let allComplete = true;
+      let hasError = false;
+
+      rows.forEach((r) => {
+        const dvEl = r.card.querySelector("[data-dv]");
+        const errEl = r.card.querySelector(".stage-error");
+
+        if (![r.wet, r.dry, r.isp].every(Number.isFinite)) {
+          dvEl.textContent = "--";
+          dvEl.classList.remove("is-error");
+          errEl.style.display = "none";
+          r.card.classList.remove("is-error");
+          allComplete = false;
+          return;
+        }
+
+        if (r.wet <= 0 || r.dry <= 0 || r.isp <= 0 || r.wet <= r.dry) {
+          errEl.textContent = r.wet <= r.dry
+            ? "⚠️ 湿重必须大于干重，该级数据无效"
+            : "⚠️ 质量与比冲必须为正数";
+          errEl.style.display = "block";
+          dvEl.textContent = "⚠ 无效";
+          dvEl.classList.add("is-error");
+          r.card.classList.add("is-error");
+          hasError = true;
+          return;
+        }
+
+        errEl.style.display = "none";
+        r.dv = r.isp * 9.81 * Math.log(r.wet / r.dry);
+        r.stageOk = true;
+        dvEl.textContent = format(r.dv) + " m/s";
+        dvEl.classList.remove("is-error");
+        if (!r.card.classList.contains("is-chain-error")) {
+          r.card.classList.remove("is-error");
+        }
+        total += r.dv;
+      });
+
+      rows.forEach((r, i) => {
+        const chainEl = r.card.querySelector("[data-chain]");
+        if (i === 0) {
+          chainEl.innerHTML = rows.length > 1
+            ? '<span class="chain-neutral">→ 质量链约束：本级干重必须大于下一级湿重</span>'
+            : "";
+          return;
+        }
+        const prev = rows[i - 1];
+        if (!prev.stageOk || !r.stageOk) {
+          chainEl.innerHTML = "";
+          r.card.classList.remove("is-chain-error");
+          prev.card.classList.remove("is-chain-error");
+          return;
+        }
+        if (prev.dry > r.wet) {
+          chainEl.innerHTML = `<span class="chain-pass">✓ 质量链通过：上一级干重 ${format(prev.dry)} t &gt; 本级湿重 ${format(r.wet)} t</span>`;
+          r.card.classList.remove("is-chain-error");
+          prev.card.classList.remove("is-chain-error");
+        } else {
+          chainEl.innerHTML = `<span class="chain-fail">✗ 质量链断裂：上一级干重 ${format(prev.dry)} t 必须大于本级湿重 ${format(r.wet)} t</span>`;
+          r.card.classList.add("is-chain-error");
+          prev.card.classList.add("is-chain-error");
+          hasError = true;
+        }
+      });
+
+      if (hasError) {
+        totalEl.textContent = "--";
+        setHint("⚠ 检测到无效数据：湿重必须大于干重，且上一级干重必须大于下一级湿重。总结果失效", "danger");
+        return;
+      }
+
+      if (!allComplete) {
+        totalEl.textContent = "--";
+        setHint("请补全所有级的输入，将自动实时计算…", "neutral");
+        return;
+      }
+
+      totalEl.textContent = format(total) + " m/s";
+      totalEl.classList.remove("bump");
+      void totalEl.offsetWidth;
+      totalEl.classList.add("bump");
+
+      if (total < 7500) {
+        setHint("❌ 远未达到入轨要求", "danger");
+      } else if (total < 9000) {
+        setHint("接近入轨门槛，仍需优化", "warn");
+      } else if (total <= 10500) {
+        setHint("可挑战真实模式入轨!", "pass");
+      } else {
+        setHint("🌌 深空探测潜力！", "deep");
+      }
+    }
+
+    function applyMode(key) {
+      const cfg = MODES[key];
+      if (!cfg) return;
+      while (stagesEl.firstChild) stagesEl.removeChild(stagesEl.firstChild);
+      cfg.stages.forEach((s, i) => {
+        const card = createStageCard(i + 1, s);
+        stagesEl.appendChild(card);
+        card.querySelector('[data-field="wet"]').value = s.wet;
+        card.querySelector('[data-field="dry"]').value = s.dry;
+        card.querySelector('[data-field="isp"]').value = s.isp;
+      });
+      modeLabelEl.textContent = "当前模式：" + cfg.label;
+      modeRocketEl.textContent = cfg.rocket;
+      modeBtns.forEach((b) => b.classList.toggle("active", b.dataset.mode === key));
+      updateRemoveButtons();
+      recalc();
+    }
+
+    function clearAll() {
+      while (stagesEl.firstChild) stagesEl.removeChild(stagesEl.firstChild);
+      stagesEl.appendChild(createStageCard(1));
+      modeLabelEl.textContent = "当前模式：自定义";
+      modeRocketEl.textContent = "自由编辑各级湿重 / 干重 / 比冲";
+      modeBtns.forEach((b) => b.classList.remove("active"));
+      updateRemoveButtons();
+      recalc();
+    }
+
+    stagesEl.addEventListener("input", recalc);
+    addBtn.addEventListener("click", addStage);
+    clearBtn.addEventListener("click", clearAll);
+    modeBtns.forEach((b) => b.addEventListener("click", () => applyMode(b.dataset.mode)));
+    stagesEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".remove-btn");
+      if (btn && !btn.disabled) {
+        btn.closest(".stage-card").remove();
+        renumber();
+        recalc();
+      }
+    });
+
+    applyMode("easy");
+  })();
+</script>
+</body>
+</html>
