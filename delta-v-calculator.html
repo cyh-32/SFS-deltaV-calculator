@@ -214,7 +214,7 @@
 
   .stage-inputs {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 14px;
   }
 
@@ -330,6 +330,101 @@
   }
 
   .remove-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* 助推器（并联） */
+  .booster-area {
+    margin-top: 6px;
+  }
+
+  .booster-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .booster-title {
+    font-family: var(--mono);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: #FF8C00;
+    text-shadow: 0 0 10px rgba(255,140,0,.5);
+  }
+
+  #boosters {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .booster-card {
+    position: relative;
+    background: rgba(255,140,0,.045);
+    border: 1px solid #FF8C00;
+    border-radius: 14px;
+    padding: 16px 18px 14px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 10px 34px rgba(0,0,0,.38), 0 0 24px rgba(255,140,0,.14);
+    transition: border-color .25s ease, box-shadow .25s ease;
+  }
+
+  .booster-card.is-error {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 1px rgba(255,77,109,.45), 0 10px 34px rgba(255,77,109,.14);
+  }
+
+  .booster-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .booster-name {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: .95rem;
+    letter-spacing: .08em;
+    color: #FF8C00;
+    text-shadow: 0 0 8px rgba(255,140,0,.5);
+  }
+
+  .booster-inputs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+
+  .booster-error {
+    display: none;
+    margin: -6px 0 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(255,77,109,.1);
+    border: 1px solid rgba(255,77,109,.4);
+    color: #FFB3C1;
+    font-size: .85rem;
+  }
+
+  .booster-card.is-error .booster-error { display: block; }
+
+  .booster-note {
+    margin-top: 10px;
+    font-size: .78rem;
+    color: var(--text-dim);
+  }
+
+  .booster-burn {
+    margin-top: 8px;
+    min-height: 1.2em;
+    font-family: var(--mono);
+    font-size: .8rem;
+    color: #FFB066;
+  }
 
   .result-card {
     margin-top: 6px;
@@ -451,6 +546,7 @@
 
   @media (max-width: 620px) {
     .stage-inputs { grid-template-columns: 1fr; }
+    .booster-inputs { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 </head>
@@ -465,6 +561,7 @@
   <div class="mode-switch">
     <button class="mode-btn active" type="button" data-mode="easy">🛰️ 简单模式 · Falcon 9</button>
     <button class="mode-btn" type="button" data-mode="hard">🌕 困难模式 · Saturn V</button>
+    <button class="mode-btn" type="button" data-mode="boosted">🚀 助推器模式 · Ariane 5</button>
   </div>
   <div class="mode-label" id="modeLabel">当前模式：简单模式</div>
   <div class="mode-rocket" id="modeRocket">Falcon 9 · 两级中型火箭（近地轨道）</div>
@@ -475,6 +572,14 @@
     <button class="btn" id="addBtn" type="button">＋ 添加一级</button>
     <button class="btn ghost" id="clearBtn" type="button">✎ 自定义（从空白开始）</button>
   </div>
+
+  <section class="booster-area" id="boosterArea">
+    <div class="booster-header">
+      <span class="booster-title">🚀 助推器（并联）</span>
+      <button class="btn" id="addBoosterBtn" type="button">＋ 添加助推器</button>
+    </div>
+    <div id="boosters"></div>
+  </section>
 
   <section class="result-card">
     <div class="total-label">总 Delta-V</div>
@@ -508,6 +613,8 @@
     const stagesEl = document.getElementById("stages");
     const addBtn = document.getElementById("addBtn");
     const clearBtn = document.getElementById("clearBtn");
+    const boostersEl = document.getElementById("boosters");
+    const addBoosterBtn = document.getElementById("addBoosterBtn");
     const totalEl = document.getElementById("totalValue");
     const hintEl = document.getElementById("hint");
     const modeLabelEl = document.getElementById("modeLabel");
@@ -522,17 +629,29 @@
         label: "简单模式",
         rocket: "Falcon 9 · 两级中型火箭（近地轨道）",
         stages: [
-          { name: "第 1 级 · S1", wet: 567.4, dry: 156.5, isp: 297, note: "湿重 = 整箭点火质量（含二级与载荷）；干重 = 一级燃尽后剩余质量" },
-          { name: "第 2 级 · S2", wet: 134.3, dry: 26.8, isp: 348, note: "湿重 = 二级点火质量（含载荷）；干重 = 二级结构 + 载荷" },
+          { name: "第 1 级 · S1", wet: 567.4, dry: 156.5, isp: 297, thrust: 7607, note: "湿重 = 整箭点火质量（含二级与载荷）；干重 = 一级燃尽后剩余质量" },
+          { name: "第 2 级 · S2", wet: 134.3, dry: 26.8, isp: 348, thrust: 981, note: "湿重 = 二级点火质量（含载荷）；干重 = 二级结构 + 载荷" },
         ],
       },
       hard: {
         label: "困难模式",
         rocket: "土星五号 Saturn V · 三级重型火箭（阿波罗登月）",
         stages: [
-          { name: "第 1 级 · S-IC", wet: 2858.4, dry: 781.4, isp: 263, note: "湿重 = 整箭点火质量（含全部上面级与载荷）；干重 = S-IC 燃尽后剩余质量" },
-          { name: "第 2 级 · S-II", wet: 644.4, dry: 188.3, isp: 421, note: "湿重 = S-II 点火质量（含三级与载荷）；干重 = S-II 燃尽后剩余质量" },
-          { name: "第 3 级 · S-IVB", wet: 148.2, dry: 40.4, isp: 421, note: "湿重 = S-IVB 点火质量（含载荷）；干重 = 三级结构 + 载荷" },
+          { name: "第 1 级 · S-IC", wet: 2858.4, dry: 781.4, isp: 263, thrust: 34020, note: "湿重 = 整箭点火质量（含全部上面级与载荷）；干重 = S-IC 燃尽后剩余质量" },
+          { name: "第 2 级 · S-II", wet: 644.4, dry: 188.3, isp: 421, thrust: 5126, note: "湿重 = S-II 点火质量（含三级与载荷）；干重 = S-II 燃尽后剩余质量" },
+          { name: "第 3 级 · S-IVB", wet: 148.2, dry: 40.4, isp: 421, thrust: 1033, note: "湿重 = S-IVB 点火质量（含载荷）；干重 = 三级结构 + 载荷" },
+        ],
+      },
+      boosted: {
+        label: "助推器模式",
+        rocket: "阿丽亚娜 5 ECA · 芯级 + 2 枚固体助推器（并联）",
+        stages: [
+          { name: "第 1 级 · H158 芯级", wet: 175, dry: 17, isp: 318, thrust: 1390, note: "湿重 = 整箭点火质量（含上面级与载荷）；干重 = 芯级燃尽后剩余质量；推力为海平面级估算" },
+          { name: "第 2 级 · ESC-A", wet: 14.8, dry: 5.2, isp: 446, thrust: 64.7, note: "湿重 = ESC-A 点火质量（含载荷）；HM7B 上面级" },
+        ],
+        boosters: [
+          { name: "助推器 1 · EAP", wet: 278.3, dry: 40.3, isp: 275, thrust: 6470, note: "固体助推器（P238 装药），公开资料估算" },
+          { name: "助推器 2 · EAP", wet: 278.3, dry: 40.3, isp: 275, thrust: 6470, note: "固体助推器（P238 装药），公开资料估算" },
         ],
       },
     };
@@ -563,11 +682,62 @@
             <label>比冲 Isp（秒）</label>
             <input type="number" min="0" step="any" inputmode="decimal" data-field="isp" placeholder="发动机比冲" />
           </div>
+          <div class="field">
+            <label>推力（kN）</label>
+            <input type="number" min="0" step="any" inputmode="decimal" data-field="thrust" placeholder="本级发动机推力" />
+          </div>
         </div>
         ${note}
         <div class="chain-line" data-chain></div>
       `;
       return card;
+    }
+
+    function createBoosterCard(index, opts) {
+      const card = document.createElement("div");
+      card.className = "booster-card";
+      const name = (opts && opts.name) || `助推器 ${index}`;
+      if (opts && opts.name) card.dataset.boosterName = name;
+      const note = (opts && opts.note) ? `<div class="booster-note">${opts.note}</div>` : "";
+      card.innerHTML = `
+        <div class="booster-head">
+          <span class="booster-name">${name}</span>
+          <button type="button" class="remove-btn" title="移除助推器">✕</button>
+        </div>
+        <div class="booster-error">⚠️ 湿重必须大于干重，该助推器数据无效</div>
+        <div class="booster-inputs">
+          <div class="field">
+            <label>湿重（吨）</label>
+            <input type="number" min="0" step="any" inputmode="decimal" data-field="wet" placeholder="含燃料质量" />
+          </div>
+          <div class="field">
+            <label>干重（吨）</label>
+            <input type="number" min="0" step="any" inputmode="decimal" data-field="dry" placeholder="空重" />
+          </div>
+          <div class="field">
+            <label>比冲 Isp（秒）</label>
+            <input type="number" min="0" step="any" inputmode="decimal" data-field="isp" placeholder="助推器比冲" />
+          </div>
+          <div class="field">
+            <label>推力（kN）</label>
+            <input type="number" min="0" step="any" inputmode="decimal" data-field="thrust" placeholder="助推器推力" />
+          </div>
+        </div>
+        ${note}
+        <div class="booster-burn" data-burn></div>
+      `;
+      return card;
+    }
+
+    function addBooster() {
+      boostersEl.appendChild(createBoosterCard(boostersEl.children.length + 1));
+      recalc();
+    }
+
+    function renumberBoosters() {
+      [...boostersEl.children].forEach((card, i) => {
+        card.querySelector(".booster-name").textContent = card.dataset.boosterName || `助推器 ${i + 1}`;
+      });
     }
 
     function addStage() {
@@ -599,13 +769,26 @@
         wet: parseFloat(card.querySelector('[data-field="wet"]').value),
         dry: parseFloat(card.querySelector('[data-field="dry"]').value),
         isp: parseFloat(card.querySelector('[data-field="isp"]').value),
+        thrust: parseFloat(card.querySelector('[data-field="thrust"]').value),
         dv: null,
         stageOk: false,
       }));
+      const boosterCards = [...boostersEl.children];
+      const boosters = boosterCards.map((card) => ({
+        card,
+        wet: parseFloat(card.querySelector('[data-field="wet"]').value),
+        dry: parseFloat(card.querySelector('[data-field="dry"]').value),
+        isp: parseFloat(card.querySelector('[data-field="isp"]').value),
+        thrust: parseFloat(card.querySelector('[data-field="thrust"]').value),
+        ok: false,
+      }));
+      const hasBoosters = boosters.length > 0;
 
+      const G = 9.81;
       let total = 0;
       let allComplete = true;
       let hasError = false;
+      let thrustError = false;
 
       rows.forEach((r) => {
         const dvEl = r.card.querySelector("[data-dv]");
@@ -632,8 +815,19 @@
           return;
         }
 
+        if (hasBoosters && !(Number.isFinite(r.thrust) && r.thrust > 0)) {
+          errEl.textContent = "⚠️ 请填写有效推力";
+          errEl.style.display = "block";
+          dvEl.textContent = "⚠ 无推力";
+          dvEl.classList.add("is-error");
+          r.card.classList.add("is-error");
+          hasError = true;
+          thrustError = true;
+          return;
+        }
+
         errEl.style.display = "none";
-        r.dv = r.isp * 9.81 * Math.log(r.wet / r.dry);
+        r.dv = r.isp * G * Math.log(r.wet / r.dry);
         r.stageOk = true;
         dvEl.textContent = format(r.dv) + " m/s";
         dvEl.classList.remove("is-error");
@@ -670,16 +864,107 @@
         }
       });
 
+      if (hasBoosters) {
+        boosters.forEach((b) => {
+          const errEl = b.card.querySelector(".booster-error");
+          const burnEl = b.card.querySelector("[data-burn]");
+          if (![b.wet, b.dry, b.isp].every(Number.isFinite)) {
+            errEl.style.display = "none";
+            b.card.classList.remove("is-error");
+            if (burnEl) burnEl.textContent = "";
+            allComplete = false;
+            return;
+          }
+          if (b.wet <= 0 || b.dry <= 0 || b.isp <= 0 || b.wet <= b.dry) {
+            errEl.textContent = "⚠️ 湿重必须大于干重，且质量与比冲为正";
+            errEl.style.display = "block";
+            b.card.classList.add("is-error");
+            hasError = true;
+            return;
+          }
+          if (!(Number.isFinite(b.thrust) && b.thrust > 0)) {
+            errEl.textContent = "⚠️ 请填写有效推力";
+            errEl.style.display = "block";
+            b.card.classList.add("is-error");
+            hasError = true;
+            thrustError = true;
+            return;
+          }
+          errEl.style.display = "none";
+          b.card.classList.remove("is-error");
+          b.ok = true;
+          if (burnEl) {
+            const fuel = b.wet - b.dry;
+            const t = fuel / (b.thrust / (b.isp * G));
+            burnEl.textContent = "⏱ 燃烧时间 ≈ " + format(t) + " s · 燃料 " + format(fuel) + " t";
+          }
+        });
+      }
+
       if (hasError) {
         totalEl.textContent = "--";
-        setHint("⚠ 检测到无效数据：湿重必须大于干重，且上一级干重必须大于下一级湿重。总结果失效", "danger");
+        setHint(
+          thrustError
+            ? "⚠️ 请填写有效推力（所有级与助推器的推力必须为正数）"
+            : "⚠ 检测到无效数据：湿重必须大于干重，且上一级干重必须大于下一级湿重。总结果失效",
+          "danger"
+        );
         return;
       }
 
       if (!allComplete) {
         totalEl.textContent = "--";
-        setHint("请补全所有级的输入，将自动实时计算…", "neutral");
+        setHint(hasBoosters ? "请补全所有级与助推器的输入，将自动实时计算…" : "请补全所有级的输入，将自动实时计算…", "neutral");
         return;
+      }
+
+      if (hasBoosters) {
+        const first = rows[0];
+        const boosterFuel = boosters.map((b) => b.wet - b.dry);
+        const boosterDry = boosters.map((b) => b.dry);
+        const boosterThrust = boosters.map((b) => b.thrust);
+        const boosterIsp = boosters.map((b) => b.isp);
+
+        const F_total = boosterThrust.reduce((a, v) => a + v, 0) + first.thrust;
+        const mdotTotal = boosterThrust.reduce((a, v, i) => a + v / (boosterIsp[i] * G), 0) + first.thrust / (first.isp * G);
+        const Isp_comb = F_total / (mdotTotal * G);
+
+        const burnTimes = boosterFuel.map((f, i) => f / (boosterThrust[i] / (boosterIsp[i] * G)));
+        const t_b = Math.min.apply(null, burnTimes);
+
+        const firstMdot = first.thrust / (first.isp * G);
+        const firstConsumed = firstMdot * t_b;
+
+        const totalLift = first.wet + boosters.reduce((a, b) => a + b.wet, 0);
+        const boosterFuelTotal = boosterFuel.reduce((a, v) => a + v, 0);
+        const sepMass = totalLift - (boosterFuelTotal + firstConsumed);
+        const dv1 = Isp_comb * G * Math.log(totalLift / sepMass);
+
+        const firstRemaining = first.wet - first.dry - firstConsumed;
+        if (firstRemaining < 0) {
+          const dvEl = first.card.querySelector("[data-dv]");
+          const errEl = first.card.querySelector(".stage-error");
+          dvEl.textContent = "⚠ 燃料不足";
+          dvEl.classList.add("is-error");
+          errEl.textContent = "⚠️ 助推器工作时间过长，第一级燃料不足";
+          errEl.style.display = "block";
+          first.card.classList.add("is-error");
+          totalEl.textContent = "--";
+          setHint("⚠️ 助推器工作时间过长，第一级燃料不足", "danger");
+          return;
+        }
+
+        const startM2 = sepMass - boosterDry.reduce((a, v) => a + v, 0);
+        const endM2 = startM2 - firstRemaining;
+        const dv2 = first.isp * G * Math.log(startM2 / endM2);
+
+        const firstDvTotal = dv1 + dv2;
+        const firstDvEl = first.card.querySelector("[data-dv]");
+        firstDvEl.textContent = format(firstDvTotal) + " m/s";
+        firstDvEl.classList.remove("is-error");
+        first.card.classList.remove("is-error");
+
+        total = firstDvTotal + rows.slice(1).reduce((a, r) => a + r.dv, 0);
       }
 
       totalEl.textContent = format(total) + " m/s";
@@ -708,7 +993,19 @@
         card.querySelector('[data-field="wet"]').value = s.wet;
         card.querySelector('[data-field="dry"]').value = s.dry;
         card.querySelector('[data-field="isp"]').value = s.isp;
+        if (s.thrust != null) card.querySelector('[data-field="thrust"]').value = s.thrust;
       });
+      while (boostersEl.firstChild) boostersEl.removeChild(boostersEl.firstChild);
+      if (cfg.boosters) {
+        cfg.boosters.forEach((b, i) => {
+          const bcard = createBoosterCard(i + 1, b);
+          boostersEl.appendChild(bcard);
+          bcard.querySelector('[data-field="wet"]').value = b.wet;
+          bcard.querySelector('[data-field="dry"]').value = b.dry;
+          bcard.querySelector('[data-field="isp"]').value = b.isp;
+          bcard.querySelector('[data-field="thrust"]').value = b.thrust;
+        });
+      }
       modeLabelEl.textContent = "当前模式：" + cfg.label;
       modeRocketEl.textContent = cfg.rocket;
       modeBtns.forEach((b) => b.classList.toggle("active", b.dataset.mode === key));
@@ -718,6 +1015,7 @@
 
     function clearAll() {
       while (stagesEl.firstChild) stagesEl.removeChild(stagesEl.firstChild);
+      while (boostersEl.firstChild) boostersEl.removeChild(boostersEl.firstChild);
       stagesEl.appendChild(createStageCard(1));
       modeLabelEl.textContent = "当前模式：自定义";
       modeRocketEl.textContent = "自由编辑各级湿重 / 干重 / 比冲";
@@ -727,7 +1025,9 @@
     }
 
     stagesEl.addEventListener("input", recalc);
+    boostersEl.addEventListener("input", recalc);
     addBtn.addEventListener("click", addStage);
+    addBoosterBtn.addEventListener("click", addBooster);
     clearBtn.addEventListener("click", clearAll);
     modeBtns.forEach((b) => b.addEventListener("click", () => applyMode(b.dataset.mode)));
     stagesEl.addEventListener("click", (e) => {
@@ -735,6 +1035,14 @@
       if (btn && !btn.disabled) {
         btn.closest(".stage-card").remove();
         renumber();
+        recalc();
+      }
+    });
+    boostersEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".remove-btn");
+      if (btn && !btn.disabled) {
+        btn.closest(".booster-card").remove();
+        renumberBoosters();
         recalc();
       }
     });
