@@ -790,7 +790,7 @@
       let hasError = false;
       let thrustError = false;
 
-      rows.forEach((r) => {
+      rows.forEach((r, i) => {
         const dvEl = r.card.querySelector("[data-dv]");
         const errEl = r.card.querySelector(".stage-error");
 
@@ -815,7 +815,7 @@
           return;
         }
 
-        if (hasBoosters && !(Number.isFinite(r.thrust) && r.thrust > 0)) {
+        if (hasBoosters && i === 0 && !(Number.isFinite(r.thrust) && r.thrust > 0)) {
           errEl.textContent = "⚠️ 请填写有效推力";
           errEl.style.display = "block";
           dvEl.textContent = "⚠ 无推力";
@@ -905,7 +905,7 @@
         totalEl.textContent = "--";
         setHint(
           thrustError
-            ? "⚠️ 请填写有效推力（所有级与助推器的推力必须为正数）"
+            ? "⚠️ 请填写有效推力（第一级与所有助推器的推力必须为正数）"
             : "⚠ 检测到无效数据：湿重必须大于干重，且上一级干重必须大于下一级湿重。总结果失效",
           "danger"
         );
